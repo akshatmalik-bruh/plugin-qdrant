@@ -307,10 +307,20 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
             Object match = map.get("match");
             if (match instanceof Map<?, ?> matchMap) {
                 if (matchMap.containsKey("value")) {
+    @SuppressWarnings("unchecked")
+    private static Common.Condition mapToCondition(Map<String, Object> map) {
+        if (map.containsKey("key")) {
+            String key = (String) map.get("key");
+            if (map.containsKey("range")) {
+                return toSingleCondition(key, map.get("range"));
+            }
+            if (map.containsKey("match")) {
+                Object match = map.get("match");
+                if (match instanceof Map<?, ?> matchMap && matchMap.containsKey("value")) {
                     return toSingleCondition(key, matchMap.get("value"));
                 }
+                return toSingleCondition(key, match);
             }
-            return toSingleCondition(key, match);
         }
         if (!map.isEmpty()) {
             var firstEntry = map.entrySet().iterator().next();
