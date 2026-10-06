@@ -360,7 +360,7 @@ tasks:
         payload:
           doc_id: "DOC-001"
           topic: "vector databases"
-          content: "Qdrant is an open-source vector search engine."
+    points:
       - id: 2
         vector: [0.19, 0.81, 0.75, 0.11]
         payload:
