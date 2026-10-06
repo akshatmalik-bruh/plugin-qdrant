@@ -40,12 +40,12 @@ public class GetTest extends QdrantTest {
                 .putPayload("city", ValueFactory.value("Paris"))
                 .build();
             client.upsertAsync(collectionName, List.of(p1, p2)).get();
-        } catch (Exception ignored) {
         }
     }
 
     @Test
     void runFetch() throws Exception {
+        if (!isQdrantAvailable()) return;
         var runContext = runContextFactory.of();
 
         var task = Get.builder()
@@ -68,6 +68,7 @@ public class GetTest extends QdrantTest {
 
     @Test
     void runFetchOne() throws Exception {
+        if (!isQdrantAvailable()) return;
         var runContext = runContextFactory.of();
 
         var task = Get.builder()

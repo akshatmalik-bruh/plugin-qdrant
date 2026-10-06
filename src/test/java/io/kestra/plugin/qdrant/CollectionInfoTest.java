@@ -21,7 +21,6 @@ public class CollectionInfoTest extends QdrantTest {
             .build();
         try (var client = qdrantClient()) {
             client.createCollectionAsync(collectionName, vectorParams).get();
-        } catch (Exception ignored) {
         }
     }
 

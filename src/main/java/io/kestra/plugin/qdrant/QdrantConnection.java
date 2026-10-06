@@ -316,6 +316,18 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
                 }
                 return toSingleCondition(key, match);
             }
+            if (map.containsKey("text")) {
+                return ConditionFactory.matchText(key, map.get("text").toString());
+            }
+            if (map.containsKey("value")) {
+                return toSingleCondition(key, map.get("value"));
+            }
+            if (map.containsKey("any")) {
+                return toSingleCondition(key, Map.of("any", map.get("any")));
+            }
+            if (map.containsKey("except")) {
+                return toSingleCondition(key, Map.of("except", map.get("except")));
+            }
             if (map.containsKey("is_empty") || map.containsKey("is_null")) {
                 return toSingleCondition(key, map);
             }
@@ -364,13 +376,34 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
             if (map.containsKey("text")) {
                 return ConditionFactory.matchText(key, map.get("text").toString());
             }
+            if (map.containsKey("value")) {
+                return toSingleCondition(key, map.get("value"));
+            }
+            if (map.containsKey("any") && map.get("any") instanceof List<?> list) {
+                if (!list.isEmpty() && list.getFirst() instanceof Number) {
+                    List<Long> longs = list.stream().map(n -> ((Number) n).longValue()).toList();
+                    return ConditionFactory.matchValues(key, longs);
+                } else {
+                    List<String> strings = list.stream().map(Object::toString).toList();
+                    return ConditionFactory.matchKeywords(key, strings);
+                }
+            }
+            if (map.containsKey("except") && map.get("except") instanceof List<?> list) {
+                if (!list.isEmpty() && list.getFirst() instanceof Number) {
+                    List<Long> longs = list.stream().map(n -> ((Number) n).longValue()).toList();
+                    return ConditionFactory.matchExceptValues(key, longs);
+                } else {
+                    List<String> strings = list.stream().map(Object::toString).toList();
+                    return ConditionFactory.matchExceptKeywords(key, strings);
+                }
+            }
             if (Boolean.TRUE.equals(map.get("is_empty"))) {
                 return ConditionFactory.isEmpty(key);
             }
             if (Boolean.TRUE.equals(map.get("is_null"))) {
                 return ConditionFactory.isNull(key);
             }
-            return ConditionFactory.matchKeyword(key, val.toString());
+            throw new IllegalArgumentException("Unsupported filter condition for key '" + key + "': " + map);
         } else if (val == null) {
             return ConditionFactory.isNull(key);
         } else {

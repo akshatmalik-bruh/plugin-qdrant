@@ -105,14 +105,29 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
     private Property<Object> vectorId;
 
     @Schema(
-        title = "Top K results",
-        description = "Maximum number of nearest points to return (default: 10, min: 1, max: 1000)."
+        title = "Vector name",
+        description = "Name of the vector space to target when querying a collection configured with named vectors."
     )
-    @Builder.Default
+    @PluginProperty(group = "main")
+    private Property<String> vectorName;
+
+    @Schema(
+        title = "Limit results",
+        description = "Maximum number of nearest points to return (default: 10, min: 1, max: 1000). Takes precedence if 'topK' is also set."
+    )
     @Min(1)
     @Max(1000)
     @PluginProperty(group = "processing")
-    private Property<Integer> topK = Property.ofValue(10);
+    private Property<Integer> limit;
+
+    @Schema(
+        title = "Top K results",
+        description = "Maximum number of nearest points to return (default: 10, min: 1, max: 1000). Alias for 'limit'; overridden if 'limit' is also specified."
+    )
+    @Min(1)
+    @Max(1000)
+    @PluginProperty(group = "processing")
+    private Property<Integer> topK;
 
     @Schema(
         title = "Filter criteria",
@@ -165,7 +180,9 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
         }
 
         String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow();
-        Integer rTopK = runContext.render(this.topK).as(Integer.class).orElse(10);
+        int rLimit = resolveLimit(runContext);
+
+        String rVectorName = this.vectorName != null ? runContext.render(this.vectorName).as(String.class).orElse(null) : null;
         Boolean rWithPayload = runContext.render(this.withPayload).as(Boolean.class).orElse(true);
         Boolean rWithVectors = runContext.render(this.withVectors).as(Boolean.class).orElse(false);
         FetchType rFetchType = runContext.render(this.fetchType).as(FetchType.class).orElse(FetchType.STORE);
@@ -192,8 +209,23 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
                 var vOut = retrieved.getFirst().getVectors();
                 if (vOut.hasVector()) {
                     queryFloats = extractVectorData(vOut.getVector());
+                } else if (vOut.hasVectors()) {
+                    Map<String, Points.VectorOutput> namedMap = vOut.getVectors().getVectorsMap();
+                    if (rVectorName != null) {
+                        Points.VectorOutput vo = namedMap.get(rVectorName);
+                        if (vo == null) {
+                            throw new IllegalArgumentException("Point with ID '" + rawId + "' does not contain a named vector '" + rVectorName + "'. Available vectors: " + namedMap.keySet());
+                        }
+                        queryFloats = extractVectorData(vo);
+                    } else if (namedMap.size() == 1) {
+                        var entry = namedMap.entrySet().iterator().next();
+                        rVectorName = entry.getKey();
+                        queryFloats = extractVectorData(entry.getValue());
+                    } else {
+                        throw new IllegalArgumentException("Point with ID '" + rawId + "' contains multiple named vectors " + namedMap.keySet() + ". Please specify 'vectorName' to select which vector to use.");
+                    }
                 } else {
-                    throw new IllegalArgumentException("Point with ID '" + rawId + "' does not contain a single vector in collection '" + rCollectionName + "'");
+                    throw new IllegalArgumentException("Point with ID '" + rawId + "' does not contain any vectors in collection '" + rCollectionName + "'");
                 }
                 if (queryFloats.isEmpty()) {
                     throw new IllegalArgumentException("Point with ID '" + rawId + "' has empty vector in collection '" + rCollectionName + "'");
@@ -203,9 +235,13 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
             Points.SearchPoints.Builder searchBuilder = Points.SearchPoints.newBuilder()
                 .setCollectionName(rCollectionName)
                 .addAllVector(queryFloats)
-                .setLimit(rTopK)
+                .setLimit(rLimit)
                 .setWithPayload(WithPayloadSelectorFactory.enable(rWithPayload))
                 .setWithVectors(WithVectorsSelectorFactory.enable(rWithVectors));
+
+            if (rVectorName != null) {
+                searchBuilder.setVectorName(rVectorName);
+            }
 
             if (this.filter != null) {
                 Map<String, Object> renderedFilter = runContext.render(this.filter).asMap(String.class, Object.class);
@@ -219,7 +255,7 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
                 searchBuilder.setScoreThreshold(rScoreThreshold);
             }
 
-            runContext.logger().info("Searching collection '{}' with topK={}", rCollectionName, rTopK);
+            runContext.logger().info("Searching collection '{}' with limit={}", rCollectionName, rLimit);
             List<Points.ScoredPoint> results = client.searchAsync(searchBuilder.build()).get();
 
             return buildFetchOutput(runContext, rFetchType, results, this::mapScoredPoint);
@@ -241,5 +277,16 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
             }
         }
         return map;
+    }
+
+    int resolveLimit(RunContext runContext) throws io.kestra.core.exceptions.IllegalVariableEvaluationException {
+        Integer rLimit = null;
+        if (this.limit != null) {
+            rLimit = runContext.render(this.limit).as(Integer.class).orElse(null);
+        }
+        if (rLimit == null && this.topK != null) {
+            rLimit = runContext.render(this.topK).as(Integer.class).orElse(null);
+        }
+        return rLimit != null ? rLimit : 10;
     }
 }

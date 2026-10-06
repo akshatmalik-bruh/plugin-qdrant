@@ -4,6 +4,8 @@ import io.kestra.core.models.property.Property;
 import io.qdrant.client.PointIdFactory;
 import io.qdrant.client.ValueFactory;
 import io.qdrant.client.VectorsFactory;
+import io.qdrant.client.WithPayloadSelectorFactory;
+import io.qdrant.client.WithVectorsSelectorFactory;
 import io.qdrant.client.grpc.Collections;
 import io.qdrant.client.grpc.Points;
 import org.junit.jupiter.api.AfterEach;
@@ -40,7 +42,6 @@ public class DeleteTest extends QdrantTest {
                 .putPayload("city", ValueFactory.value("Paris"))
                 .build();
             client.upsertAsync(collectionName, List.of(p1, p2)).get();
-        } catch (Exception ignored) {
         }
     }
 
@@ -60,6 +61,20 @@ public class DeleteTest extends QdrantTest {
         assertThat(output, notNullValue());
         assertThat(output.getDeletedCount(), is(1L));
         assertThat(output.getSuccess(), is(true));
+
+        try (var client = qdrantClient()) {
+            var count = client.countAsync(collectionName).get();
+            assertThat(count, is(1L));
+            var retrieved = client.retrieveAsync(
+                collectionName,
+                List.of(PointIdFactory.id(2L)),
+                WithPayloadSelectorFactory.enable(true),
+                WithVectorsSelectorFactory.enable(false),
+                null
+            ).get();
+            assertThat(retrieved.size(), is(1));
+            assertThat(retrieved.get(0).getId().getNum(), is(2L));
+        }
     }
 
     @Test
@@ -77,6 +92,20 @@ public class DeleteTest extends QdrantTest {
 
         assertThat(output, notNullValue());
         assertThat(output.getSuccess(), is(true));
+
+        try (var client = qdrantClient()) {
+            var count = client.countAsync(collectionName).get();
+            assertThat(count, is(1L));
+            var retrieved = client.retrieveAsync(
+                collectionName,
+                List.of(PointIdFactory.id(1L)),
+                WithPayloadSelectorFactory.enable(true),
+                WithVectorsSelectorFactory.enable(false),
+                null
+            ).get();
+            assertThat(retrieved.size(), is(1));
+            assertThat(retrieved.get(0).getId().getNum(), is(1L));
+        }
     }
 
     @AfterEach

@@ -24,7 +24,7 @@ import lombok.experimental.SuperBuilder;
 @NoArgsConstructor
 @Schema(
     title = "Create a collection in Qdrant",
-    description = "Creates a new vector collection with specified vector dimension and distance metric."
+    description = "Creates a new single-vector collection with specified vector dimension and distance metric. Collections with multiple named vectors should be created via the Qdrant API or CLI."
 )
 @Plugin(
     examples = {

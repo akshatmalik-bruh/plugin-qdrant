@@ -21,10 +21,17 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
+import reactor.core.publisher.Mono;
+
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 @SuperBuilder
@@ -80,7 +87,7 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
 
     @Schema(
         title = "Points to upsert",
-        description = "Points data source, either an inline list of maps or a Kestra storage URI to an ION file. Each point must include a 'vector' list and optionally an 'id' and 'payload' map."
+        description = "Points data source, either an inline list of maps or a Kestra storage URI to an ION file. Each point must include a vector (dense 'vector' list or named 'vectors' map) and optionally an 'id' and 'payload' map."
     )
     @NotNull
     @PluginProperty(group = "main")
@@ -109,15 +116,13 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
             this.points.read(runContext)
                 .map(this::mapToPointStruct)
                 .buffer(rBatchSize)
-                .doOnNext(batch -> {
-                    try {
-                        client.upsertAsync(rCollectionName, batch).get();
+                .concatMap(batch -> Mono.fromFuture(toCompletableFuture(client.upsertAsync(rCollectionName, batch)))
+                    .doOnSuccess(res -> {
                         totalUpserted.addAndGet(batch.size());
                         runContext.logger().debug("Upserted batch of {} points", batch.size());
-                    } catch (Exception e) {
-                        throw new RuntimeException("Failed to upsert points to Qdrant: " + e.getMessage(), e);
-                    }
-                })
+                    })
+                    .onErrorMap(e -> new RuntimeException("Failed to upsert points to Qdrant: " + e.getMessage(), e))
+                )
                 .blockLast();
 
             runContext.logger().info("Successfully upserted {} points into collection '{}'", totalUpserted.get(), rCollectionName);
@@ -126,6 +131,26 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
                 .upsertedCount(totalUpserted.get())
                 .build();
         }
+    }
+
+    private static <T> CompletableFuture<T> toCompletableFuture(ListenableFuture<T> listenableFuture) {
+        CompletableFuture<T> completableFuture = new CompletableFuture<>();
+        Futures.addCallback(
+            listenableFuture,
+            new FutureCallback<>() {
+                @Override
+                public void onSuccess(T result) {
+                    completableFuture.complete(result);
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    completableFuture.completeExceptionally(t);
+                }
+            },
+            MoreExecutors.directExecutor()
+        );
+        return completableFuture;
     }
 
     @SuppressWarnings("unchecked")
