@@ -147,12 +147,11 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
         }
         return PointIdFactory.id(UUID.nameUUIDFromBytes(str.getBytes(StandardCharsets.UTF_8)));
     }
-
-    public static Object fromPointId(Common.PointId pointId) {
-        if (pointId == null) {
-            return null;
+        try {
+            return PointIdFactory.id(UUID.fromString(str));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid point ID '" + str + "': Qdrant requires an unsigned 64-bit integer or a valid RFC-4122 UUID.", e);
         }
-        return switch (pointId.getPointIdOptionsCase()) {
             case NUM -> pointId.getNum();
             case UUID -> pointId.getUuid();
             case POINTIDOPTIONS_NOT_SET -> null;
