@@ -40,4 +40,4 @@ Provides tasks under `io.kestra.plugin.qdrant`:
 * Plugin Developer Guide: [kestra.io/docs/plugin-developer-guide/](https://kestra.io/docs/plugin-developer-guide/)
 
 ## License
-Apache 2.0 © [Kestra Technologies](https://kestra.io)
+Apache 2.0 (c) [Kestra Technologies](https://kestra.io)

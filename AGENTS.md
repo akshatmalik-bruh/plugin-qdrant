@@ -35,28 +35,28 @@ Single-module plugin with a flat package layout (no sub-packages):
 
 ```
 plugin-qdrant/
-├── src/main/java/io/kestra/plugin/qdrant/
-│   ├── QdrantConnectionInterface.java
-│   ├── QdrantConnection.java
-│   ├── Distance.java
-│   ├── CreateCollection.java
-│   ├── DeleteCollection.java
-│   ├── CollectionInfo.java
-│   ├── Upsert.java
-│   ├── Get.java
-│   ├── Query.java
-│   ├── Delete.java
-│   └── package-info.java
-├── src/main/resources/
-│   ├── doc/io.kestra.plugin.qdrant.md
-│   ├── icons/plugin-icon.svg
-│   ├── icons/io.kestra.plugin.qdrant.svg
-│   ├── metadata/index.yaml
-│   └── META-INF/services/io.grpc.LoadBalancerProvider
-├── src/test/java/io/kestra/plugin/qdrant/
-├── build.gradle
-├── README.md
-└── AGENTS.md
+|-- src/main/java/io/kestra/plugin/qdrant/
+|   |-- QdrantConnectionInterface.java
+|   |-- QdrantConnection.java
+|   |-- Distance.java
+|   |-- CreateCollection.java
+|   |-- DeleteCollection.java
+|   |-- CollectionInfo.java
+|   |-- Upsert.java
+|   |-- Get.java
+|   |-- Query.java
+|   |-- Delete.java
+|   \-- package-info.java
+|-- src/main/resources/
+|   |-- doc/io.kestra.plugin.qdrant.md
+|   |-- icons/plugin-icon.svg
+|   |-- icons/io.kestra.plugin.qdrant.svg
+|   |-- metadata/index.yaml
+|   \-- META-INF/services/io.grpc.LoadBalancerProvider
+|-- src/test/java/io/kestra/plugin/qdrant/
+|-- build.gradle
+|-- README.md
+\-- AGENTS.md
 ```
 
 ## References

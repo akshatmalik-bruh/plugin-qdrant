@@ -28,18 +28,21 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
 
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 @SuperBuilder
 @ToString
@@ -143,15 +146,16 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
         }
         try {
             return PointIdFactory.id(UUID.fromString(str));
-        } catch (IllegalArgumentException ignored) {
-        }
-        return PointIdFactory.id(UUID.nameUUIDFromBytes(str.getBytes(StandardCharsets.UTF_8)));
-    }
-        try {
-            return PointIdFactory.id(UUID.fromString(str));
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Invalid point ID '" + str + "': Qdrant requires an unsigned 64-bit integer or a valid RFC-4122 UUID.", e);
         }
+    }
+
+    public static Object fromPointId(Common.PointId pointId) {
+        if (pointId == null) {
+            return null;
+        }
+        return switch (pointId.getPointIdOptionsCase()) {
             case NUM -> pointId.getNum();
             case UUID -> pointId.getUuid();
             case POINTIDOPTIONS_NOT_SET -> null;
@@ -273,7 +277,6 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
                     }
                 }
             }
-            return filterBuilder.build();
         }
 
         if (filterMap.containsKey("range") && filterMap.get("range") instanceof Map<?, ?> rangeFieldMap) {
@@ -303,13 +306,6 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
     private static Common.Condition mapToCondition(Map<String, Object> map) {
         if (map.containsKey("key")) {
             String key = (String) map.get("key");
-            Object match = map.get("match");
-            if (match instanceof Map<?, ?> matchMap) {
-                if (matchMap.containsKey("value")) {
-    @SuppressWarnings("unchecked")
-    private static Common.Condition mapToCondition(Map<String, Object> map) {
-        if (map.containsKey("key")) {
-            String key = (String) map.get("key");
             if (map.containsKey("range")) {
                 return toSingleCondition(key, map.get("range"));
             }
@@ -319,6 +315,9 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
                     return toSingleCondition(key, matchMap.get("value"));
                 }
                 return toSingleCondition(key, match);
+            }
+            if (map.containsKey("is_empty") || map.containsKey("is_null")) {
+                return toSingleCondition(key, map);
             }
         }
         if (!map.isEmpty()) {
@@ -388,25 +387,49 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
         return runContext.storage().putFile(tempFile);
     }
 
-    public static FetchOutput buildFetchOutput(RunContext runContext, FetchType fetchType, List<Map<String, Object>> rows) throws IOException {
+    public static <T> FetchOutput buildFetchOutput(
+        RunContext runContext,
+        FetchType fetchType,
+        List<T> items,
+        Function<T, Map<String, Object>> mapper
+    ) throws IOException {
         FetchOutput.FetchOutputBuilder builder = FetchOutput.builder();
         return switch (fetchType) {
             case FETCH_ONE -> builder
-                .size(rows.isEmpty() ? 0L : 1L)
-                .row(rows.isEmpty() ? null : rows.getFirst())
+                .size(items.isEmpty() ? 0L : 1L)
+                .row(items.isEmpty() ? null : mapper.apply(items.getFirst()))
                 .build();
-            case FETCH -> builder
-                .size((long) rows.size())
-                .rows(new java.util.ArrayList<>(rows))
-                .build();
-            case STORE -> builder
-                .size((long) rows.size())
-                .uri(store(runContext, rows))
-                .build();
+            case FETCH -> {
+                List<Object> rows = new ArrayList<>(items.size());
+                for (T item : items) {
+                    rows.add(mapper.apply(item));
+                }
+                yield builder
+                    .size((long) rows.size())
+                    .rows(rows)
+                    .build();
+            }
+            case STORE -> {
+                File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+                try (OutputStream output = new BufferedOutputStream(new FileOutputStream(tempFile))) {
+                    for (T item : items) {
+                        FileSerde.write(output, mapper.apply(item));
+                    }
+                    output.flush();
+                }
+                yield builder
+                    .size((long) items.size())
+                    .uri(runContext.storage().putFile(tempFile))
+                    .build();
+            }
             default -> builder
-                .size((long) rows.size())
+                .size((long) items.size())
                 .build();
         };
+    }
+
+    public static FetchOutput buildFetchOutput(RunContext runContext, FetchType fetchType, List<Map<String, Object>> rows) throws IOException {
+        return buildFetchOutput(runContext, fetchType, rows, Function.identity());
     }
 
     public static List<Float> extractVectorData(Points.VectorOutput vector) {

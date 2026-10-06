@@ -222,25 +222,24 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
             runContext.logger().info("Searching collection '{}' with topK={}", rCollectionName, rTopK);
             List<Points.ScoredPoint> results = client.searchAsync(searchBuilder.build()).get();
 
-            List<Map<String, Object>> rows = new ArrayList<>(results.size());
-            for (var sp : results) {
-                Map<String, Object> map = new LinkedHashMap<>();
-                map.put("id", fromPointId(sp.getId()));
-                map.put("score", sp.getScore());
-                map.put("version", sp.getVersion());
-                if (sp.getPayloadCount() > 0) {
-                    map.put("payload", fromPayloadMap(sp.getPayloadMap()));
-                }
-                if (sp.hasVectors()) {
-                    Object vectorObj = fromVectorsOutput(sp.getVectors());
-                    if (vectorObj != null) {
-                        map.put("vector", vectorObj);
-                    }
-                }
-                rows.add(map);
-            }
-
-            return buildFetchOutput(runContext, rFetchType, rows);
+            return buildFetchOutput(runContext, rFetchType, results, this::mapScoredPoint);
         }
+    }
+
+    private Map<String, Object> mapScoredPoint(Points.ScoredPoint sp) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", fromPointId(sp.getId()));
+        map.put("score", sp.getScore());
+        map.put("version", sp.getVersion());
+        if (sp.getPayloadCount() > 0) {
+            map.put("payload", fromPayloadMap(sp.getPayloadMap()));
+        }
+        if (sp.hasVectors()) {
+            Object vectorObj = fromVectorsOutput(sp.getVectors());
+            if (vectorObj != null) {
+                map.put("vector", vectorObj);
+            }
+        }
+        return map;
     }
 }

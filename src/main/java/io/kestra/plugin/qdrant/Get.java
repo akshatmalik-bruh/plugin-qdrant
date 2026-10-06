@@ -129,23 +129,22 @@ public class Get extends QdrantConnection implements RunnableTask<FetchOutput> {
                 null
             ).get();
 
-            List<Map<String, Object>> rows = new ArrayList<>(retrieved.size());
-            for (var point : retrieved) {
-                Map<String, Object> map = new LinkedHashMap<>();
-                map.put("id", fromPointId(point.getId()));
-                if (point.getPayloadCount() > 0) {
-                    map.put("payload", fromPayloadMap(point.getPayloadMap()));
-                }
-                if (point.hasVectors()) {
-                    Object vectorObj = fromVectorsOutput(point.getVectors());
-                    if (vectorObj != null) {
-                        map.put("vector", vectorObj);
-                    }
-                }
-                rows.add(map);
-            }
-
-            return buildFetchOutput(runContext, rFetchType, rows);
+            return buildFetchOutput(runContext, rFetchType, retrieved, this::mapRetrievedPoint);
         }
+    }
+
+    private Map<String, Object> mapRetrievedPoint(Points.RetrievedPoint point) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", fromPointId(point.getId()));
+        if (point.getPayloadCount() > 0) {
+            map.put("payload", fromPayloadMap(point.getPayloadMap()));
+        }
+        if (point.hasVectors()) {
+            Object vectorObj = fromVectorsOutput(point.getVectors());
+            if (vectorObj != null) {
+                map.put("vector", vectorObj);
+            }
+        }
+        return map;
     }
 }
