@@ -14,6 +14,8 @@ import io.qdrant.client.QdrantClient;
 import io.qdrant.client.QdrantGrpcClient;
 import io.qdrant.client.ValueFactory;
 import io.qdrant.client.grpc.Common;
+import io.grpc.LoadBalancerRegistry;
+import io.grpc.LoadBalancerProvider;
 import io.qdrant.client.grpc.JsonWithInt;
 import io.qdrant.client.grpc.Points;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -22,6 +24,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -88,11 +91,11 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
     public QdrantClient buildClient(RunContext runContext) throws IllegalVariableEvaluationException {
         ensurePickFirstRegistered();
 
-        String rHost = runContext.render(this.host).as(String.class).orElseThrow(() -> new IllegalArgumentException("'host' is required"));
+        var rHost = runContext.render(this.host).as(String.class).orElseThrow(() -> new IllegalArgumentException("'host' is required"));
         rHost = rHost.replaceFirst("^https?://", "");
-        Integer rPort = runContext.render(this.port).as(Integer.class).orElse(6334);
-        String rApiKey = runContext.render(this.apiKey).as(String.class).orElse(null);
-        Boolean rTlsEnabled = runContext.render(this.tlsEnabled).as(Boolean.class).orElse(false);
+        var rPort = runContext.render(this.port).as(Integer.class).orElse(6334);
+        var rApiKey = runContext.render(this.apiKey).as(String.class).orElse(null);
+        var rTlsEnabled = runContext.render(this.tlsEnabled).as(Boolean.class).orElse(false);
 
         QdrantGrpcClient.Builder builder = QdrantGrpcClient.newBuilder(rHost, rPort, rTlsEnabled);
         if (rApiKey != null && !rApiKey.isBlank()) {
@@ -103,7 +106,7 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
     }
 
     private static void ensurePickFirstRegistered() {
-        var registry = io.grpc.LoadBalancerRegistry.getDefaultRegistry();
+        var registry = LoadBalancerRegistry.getDefaultRegistry();
         if (registry.getProvider("pick_first") != null) {
             return;
         }
@@ -113,7 +116,7 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
                 true,
                 QdrantConnection.class.getClassLoader()
             );
-            registry.register((io.grpc.LoadBalancerProvider) providerClass.getDeclaredConstructor().newInstance());
+            registry.register((LoadBalancerProvider) providerClass.getDeclaredConstructor().newInstance());
         } catch (Exception e) {
             org.slf4j.LoggerFactory.getLogger(QdrantConnection.class)
                 .warn("Failed to register pick_first gRPC load balancer provider (best-effort fallback covered by META-INF/services)", e);
@@ -282,7 +285,7 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
 
         if (filterMap.containsKey("range") && filterMap.get("range") instanceof Map<?, ?> rangeFieldMap) {
             for (Map.Entry<?, ?> rEntry : rangeFieldMap.entrySet()) {
-                String rKey = String.valueOf(rEntry.getKey());
+                var rKey = String.valueOf(rEntry.getKey());
                 if (rEntry.getValue() instanceof Map<?, ?> rMap) {
                     Common.Range.Builder rb = Common.Range.newBuilder();
                     if (rMap.get("gte") instanceof Number n) rb.setGte(n.doubleValue());

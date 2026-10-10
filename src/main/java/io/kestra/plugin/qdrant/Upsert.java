@@ -16,6 +16,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -105,8 +106,8 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
-        Integer rBatchSize = runContext.render(this.batchSize).as(Integer.class).orElse(100);
+        var rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
+        var rBatchSize = runContext.render(this.batchSize).as(Integer.class).orElse(100);
 
         runContext.logger().info("Upserting points into collection '{}' with batch size {}", rCollectionName, rBatchSize);
 
@@ -155,7 +156,7 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
 
     @SuppressWarnings("unchecked")
     private Points.PointStruct mapToPointStruct(Map<String, Object> map) {
-        Points.PointStruct.Builder builder = Points.PointStruct.newBuilder();
+        var builder = Points.PointStruct.newBuilder();
 
         Object id = map.get("id");
         if (id != null) {
@@ -203,7 +204,7 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
         return builder.build();
     }
 
-    @lombok.Builder
+    @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(

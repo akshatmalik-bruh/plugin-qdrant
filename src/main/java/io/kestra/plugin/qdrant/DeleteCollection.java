@@ -10,6 +10,7 @@ import io.kestra.core.runners.RunContext;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -56,7 +57,7 @@ public class DeleteCollection extends QdrantConnection implements RunnableTask<V
 
     @Override
     public VoidOutput run(RunContext runContext) throws Exception {
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
+        var rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
         runContext.logger().info("Deleting Qdrant collection '{}'", rCollectionName);
 
         try (var client = buildClient(runContext)) {

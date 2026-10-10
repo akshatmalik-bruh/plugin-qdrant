@@ -12,6 +12,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -101,12 +102,12 @@ public class CreateCollection extends QdrantConnection implements RunnableTask<C
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
-        Integer rVectorSize = runContext.render(this.vectorSize).as(Integer.class).orElseThrow(() -> new IllegalArgumentException("'vectorSize' is required"));
-        Distance rDistance = runContext.render(this.distance).as(Distance.class).orElse(Distance.COSINE);
-        Boolean rOnDiskVectors = runContext.render(this.onDiskVectors).as(Boolean.class).orElse(false);
-        PayloadMemory rPayloadMemory = runContext.render(this.payloadMemory).as(PayloadMemory.class).orElse(null);
-        Boolean rOnDiskPayload = runContext.render(this.onDiskPayload).as(Boolean.class).orElse(null);
+        var rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
+        var rVectorSize = runContext.render(this.vectorSize).as(Integer.class).orElseThrow(() -> new IllegalArgumentException("'vectorSize' is required"));
+        var rDistance = runContext.render(this.distance).as(Distance.class).orElse(Distance.COSINE);
+        var rOnDiskVectors = runContext.render(this.onDiskVectors).as(Boolean.class).orElse(false);
+        var rPayloadMemory = runContext.render(this.payloadMemory).as(PayloadMemory.class).orElse(null);
+        var rOnDiskPayload = runContext.render(this.onDiskPayload).as(Boolean.class).orElse(null);
 
         if (rPayloadMemory == null && Boolean.TRUE.equals(rOnDiskPayload)) {
             rPayloadMemory = PayloadMemory.COLD;
@@ -143,7 +144,7 @@ public class CreateCollection extends QdrantConnection implements RunnableTask<C
         }
     }
 
-    @lombok.Builder
+    @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(

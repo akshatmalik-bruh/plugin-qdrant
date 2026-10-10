@@ -18,6 +18,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -179,12 +180,12 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
             );
         }
 
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
+        var rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
         int rLimit = resolveLimit(runContext);
 
-        String rVectorName = this.vectorName != null ? runContext.render(this.vectorName).as(String.class).orElse(null) : null;
-        Boolean rWithPayload = runContext.render(this.withPayload).as(Boolean.class).orElse(true);
-        Boolean rWithVectors = runContext.render(this.withVectors).as(Boolean.class).orElse(false);
+        var rVectorName = this.vectorName != null ? runContext.render(this.vectorName).as(String.class).orElse(null) : null;
+        var rWithPayload = runContext.render(this.withPayload).as(Boolean.class).orElse(true);
+        var rWithVectors = runContext.render(this.withVectors).as(Boolean.class).orElse(false);
         FetchType rFetchType = runContext.render(this.fetchType).as(FetchType.class).orElse(FetchType.STORE);
         Float rScoreThreshold = runContext.render(this.scoreThreshold).as(Float.class).orElse(null);
 

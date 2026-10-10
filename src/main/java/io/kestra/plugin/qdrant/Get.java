@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -104,10 +105,10 @@ public class Get extends QdrantConnection implements RunnableTask<FetchOutput> {
 
     @Override
     public FetchOutput run(RunContext runContext) throws Exception {
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
+        var rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
         List<Object> renderedIds = runContext.render(this.ids).asList(Object.class);
-        Boolean rWithPayload = runContext.render(this.withPayload).as(Boolean.class).orElse(true);
-        Boolean rWithVectors = runContext.render(this.withVectors).as(Boolean.class).orElse(false);
+        var rWithPayload = runContext.render(this.withPayload).as(Boolean.class).orElse(true);
+        var rWithVectors = runContext.render(this.withVectors).as(Boolean.class).orElse(false);
         FetchType rFetchType = runContext.render(this.fetchType).as(FetchType.class).orElse(FetchType.STORE);
 
         if (renderedIds.isEmpty()) {

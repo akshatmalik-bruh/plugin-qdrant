@@ -11,6 +11,7 @@ import io.qdrant.client.grpc.Points;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.EqualsAndHashCode;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -102,7 +103,7 @@ public class Delete extends QdrantConnection implements RunnableTask<Delete.Outp
             );
         }
 
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
+        var rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
 
         try (var client = buildClient(runContext)) {
             if (hasIds) {
@@ -143,7 +144,7 @@ public class Delete extends QdrantConnection implements RunnableTask<Delete.Outp
         }
     }
 
-    @lombok.Builder
+    @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
