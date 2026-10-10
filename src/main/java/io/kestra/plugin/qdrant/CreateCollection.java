@@ -101,8 +101,8 @@ public class CreateCollection extends QdrantConnection implements RunnableTask<C
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow();
-        Integer rVectorSize = runContext.render(this.vectorSize).as(Integer.class).orElseThrow();
+        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
+        Integer rVectorSize = runContext.render(this.vectorSize).as(Integer.class).orElseThrow(() -> new IllegalArgumentException("'vectorSize' is required"));
         Distance rDistance = runContext.render(this.distance).as(Distance.class).orElse(Distance.COSINE);
         Boolean rOnDiskVectors = runContext.render(this.onDiskVectors).as(Boolean.class).orElse(false);
         PayloadMemory rPayloadMemory = runContext.render(this.payloadMemory).as(PayloadMemory.class).orElse(null);

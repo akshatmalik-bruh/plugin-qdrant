@@ -88,7 +88,7 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
     public QdrantClient buildClient(RunContext runContext) throws IllegalVariableEvaluationException {
         ensurePickFirstRegistered();
 
-        String rHost = runContext.render(this.host).as(String.class).orElseThrow();
+        String rHost = runContext.render(this.host).as(String.class).orElseThrow(() -> new IllegalArgumentException("'host' is required"));
         rHost = rHost.replaceFirst("^https?://", "");
         Integer rPort = runContext.render(this.port).as(Integer.class).orElse(6334);
         String rApiKey = runContext.render(this.apiKey).as(String.class).orElse(null);
@@ -114,8 +114,9 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
                 QdrantConnection.class.getClassLoader()
             );
             registry.register((io.grpc.LoadBalancerProvider) providerClass.getDeclaredConstructor().newInstance());
-        } catch (Exception ignored) {
-            // best-effort fallback covered by META-INF/services
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(QdrantConnection.class)
+                .warn("Failed to register pick_first gRPC load balancer provider (best-effort fallback covered by META-INF/services)", e);
         }
     }
 

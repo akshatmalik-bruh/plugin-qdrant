@@ -102,7 +102,7 @@ public class Delete extends QdrantConnection implements RunnableTask<Delete.Outp
             );
         }
 
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow();
+        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
 
         try (var client = buildClient(runContext)) {
             if (hasIds) {

@@ -105,7 +105,7 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow();
+        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
         Integer rBatchSize = runContext.render(this.batchSize).as(Integer.class).orElse(100);
 
         runContext.logger().info("Upserting points into collection '{}' with batch size {}", rCollectionName, rBatchSize);
@@ -169,20 +169,30 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
             vector = map.get("vectors");
         }
         if (vector instanceof List<?> list) {
-            List<Float> floats = list.stream().map(n -> ((Number) n).floatValue()).toList();
-            builder.setVectors(VectorsFactory.vectors(floats));
+            try {
+                List<Float> floats = list.stream().map(n -> ((Number) n).floatValue()).toList();
+                builder.setVectors(VectorsFactory.vectors(floats));
+            } catch (ClassCastException e) {
+                throw new IllegalArgumentException("Point '" + map.get("id") + "': vector list must contain only numbers", e);
+            }
         } else if (vector instanceof Map<?, ?> vMap) {
             Map<String, Points.Vector> named = new LinkedHashMap<>();
             for (Map.Entry<?, ?> entry : vMap.entrySet()) {
                 String name = String.valueOf(entry.getKey());
                 if (entry.getValue() instanceof List<?> vList) {
-                    List<Float> floats = vList.stream().map(n -> ((Number) n).floatValue()).toList();
-                    named.put(name, Points.Vector.newBuilder().addAllData(floats).build());
+                    try {
+                        List<Float> floats = vList.stream().map(n -> ((Number) n).floatValue()).toList();
+                        named.put(name, Points.Vector.newBuilder().addAllData(floats).build());
+                    } catch (ClassCastException e) {
+                        throw new IllegalArgumentException("Point '" + map.get("id") + "': named vector '" + name + "' must contain only numbers", e);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Point '" + map.get("id") + "': named vector '" + name + "' must be a list of numbers");
                 }
             }
             builder.setVectors(VectorsFactory.namedVectors(named));
         } else {
-            throw new IllegalArgumentException("Point must contain a 'vector' or 'vectors' field with numeric values");
+            throw new IllegalArgumentException("Point '" + map.get("id") + "': must contain a 'vector' or 'vectors' field as a list or map of numbers");
         }
 
         Object payload = map.get("payload");

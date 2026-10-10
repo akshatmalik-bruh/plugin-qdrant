@@ -179,7 +179,7 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
             );
         }
 
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow();
+        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
         int rLimit = resolveLimit(runContext);
 
         String rVectorName = this.vectorName != null ? runContext.render(this.vectorName).as(String.class).orElse(null) : null;
@@ -194,7 +194,7 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
                 List<Object> rawList = runContext.render(this.vector).asList(Object.class);
                 queryFloats = rawList.stream().map(n -> ((Number) n).floatValue()).toList();
             } else {
-                Object rawId = runContext.render(this.vectorId).as(Object.class).orElseThrow();
+                Object rawId = runContext.render(this.vectorId).as(Object.class).orElseThrow(() -> new IllegalArgumentException("'vectorId' is required"));
                 Common.PointId pid = toPointId(rawId);
                 var retrieved = client.retrieveAsync(
                     rCollectionName,

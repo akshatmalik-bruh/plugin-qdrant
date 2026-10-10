@@ -55,7 +55,7 @@ public class CollectionInfo extends QdrantConnection implements RunnableTask<Col
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow();
+        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
         runContext.logger().info("Getting collection info for Qdrant collection '{}'", rCollectionName);
 
         try (var client = buildClient(runContext)) {

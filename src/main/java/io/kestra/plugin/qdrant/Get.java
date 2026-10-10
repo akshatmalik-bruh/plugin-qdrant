@@ -104,7 +104,7 @@ public class Get extends QdrantConnection implements RunnableTask<FetchOutput> {
 
     @Override
     public FetchOutput run(RunContext runContext) throws Exception {
-        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow();
+        String rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
         List<Object> renderedIds = runContext.render(this.ids).asList(Object.class);
         Boolean rWithPayload = runContext.render(this.withPayload).as(Boolean.class).orElse(true);
         Boolean rWithVectors = runContext.render(this.withVectors).as(Boolean.class).orElse(false);
