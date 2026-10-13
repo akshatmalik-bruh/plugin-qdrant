@@ -11,12 +11,9 @@ import io.qdrant.client.PointIdFactory;
 import io.qdrant.client.VectorsFactory;
 import io.qdrant.client.grpc.Points;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -88,19 +85,18 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
 
     @Schema(
         title = "Points to upsert",
-        description = "Points data source, either an inline list of maps or a Kestra storage URI to an ION file. Each point must include a vector (dense 'vector' list or named 'vectors' map) and optionally an 'id' and 'payload' map."
+        description = "Points data source, either an inline list of maps or a Kestra storage URI to an ION file. Each point must include a vector (dense 'vector' list or named 'vectors' map) and optionally an 'id' and 'payload' map.",
+        anyOf = {String.class, List.class, Map.class}
     )
     @NotNull
-    @PluginProperty(group = "main")
-    private Data points;
+    @PluginProperty(group = "main", dynamic = true)
+    private Object points;
 
     @Schema(
         title = "Batch size",
         description = "The number of points to send in each upsert batch request (default: 100, min: 1, max: 1000)."
     )
     @Builder.Default
-    @Min(1)
-    @Max(1000)
     @PluginProperty(group = "processing")
     private Property<Integer> batchSize = Property.ofValue(100);
 
@@ -108,13 +104,15 @@ public class Upsert extends QdrantConnection implements RunnableTask<Upsert.Outp
     public Output run(RunContext runContext) throws Exception {
         var rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
         var rBatchSize = runContext.render(this.batchSize).as(Integer.class).orElse(100);
+        validateRange("batchSize", rBatchSize, 1, 1000);
 
         runContext.logger().info("Upserting points into collection '{}' with batch size {}", rCollectionName, rBatchSize);
 
         AtomicLong totalUpserted = new AtomicLong();
 
         try (var client = buildClient(runContext)) {
-            this.points.read(runContext)
+            Data.from(this.points)
+                .read(runContext)
                 .map(this::mapToPointStruct)
                 .buffer(rBatchSize)
                 .concatMap(batch -> Mono.fromFuture(toCompletableFuture(client.upsertAsync(rCollectionName, batch)))

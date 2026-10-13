@@ -19,12 +19,9 @@ import io.grpc.LoadBalancerProvider;
 import io.qdrant.client.grpc.JsonWithInt;
 import io.qdrant.client.grpc.Points;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -67,8 +64,6 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
         description = "The gRPC port of the Qdrant instance (default 6334)."
     )
     @Builder.Default
-    @Min(1)
-    @Max(65535)
     @PluginProperty(group = "connection")
     protected Property<Integer> port = Property.ofValue(6334);
 
@@ -94,6 +89,7 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
         var rHost = runContext.render(this.host).as(String.class).orElseThrow(() -> new IllegalArgumentException("'host' is required"));
         rHost = rHost.replaceFirst("^https?://", "");
         var rPort = runContext.render(this.port).as(Integer.class).orElse(6334);
+        validateRange("port", rPort, 1, 65535);
         var rApiKey = runContext.render(this.apiKey).as(String.class).orElse(null);
         var rTlsEnabled = runContext.render(this.tlsEnabled).as(Boolean.class).orElse(false);
 
@@ -103,6 +99,12 @@ public abstract class QdrantConnection extends Task implements QdrantConnectionI
         }
 
         return new QdrantClient(builder.build());
+    }
+
+    protected static void validateRange(String property, int value, int min, int max) {
+        if (value < min || value > max) {
+            throw new IllegalArgumentException("'" + property + "' must be between " + min + " and " + max + ", got: " + value);
+        }
     }
 
     private static void ensurePickFirstRegistered() {

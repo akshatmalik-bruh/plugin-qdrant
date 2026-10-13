@@ -13,18 +13,14 @@ import io.qdrant.client.WithVectorsSelectorFactory;
 import io.qdrant.client.grpc.Common;
 import io.qdrant.client.grpc.Points;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -116,8 +112,6 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
         title = "Limit results",
         description = "Maximum number of nearest points to return (default: 10, min: 1, max: 1000). Takes precedence if 'topK' is also set."
     )
-    @Min(1)
-    @Max(1000)
     @PluginProperty(group = "processing")
     private Property<Integer> limit;
 
@@ -125,8 +119,6 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
         title = "Top K results",
         description = "Maximum number of nearest points to return (default: 10, min: 1, max: 1000). Alias for 'limit'; overridden if 'limit' is also specified."
     )
-    @Min(1)
-    @Max(1000)
     @PluginProperty(group = "processing")
     private Property<Integer> topK;
 
@@ -193,7 +185,11 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
             List<Float> queryFloats;
             if (hasVector) {
                 List<Object> rawList = runContext.render(this.vector).asList(Object.class);
-                queryFloats = rawList.stream().map(n -> ((Number) n).floatValue()).toList();
+                try {
+                    queryFloats = rawList.stream().map(n -> ((Number) n).floatValue()).toList();
+                } catch (ClassCastException | NullPointerException e) {
+                    throw new IllegalArgumentException("'vector' must be a list of numbers", e);
+                }
             } else {
                 Object rawId = runContext.render(this.vectorId).as(Object.class).orElseThrow(() -> new IllegalArgumentException("'vectorId' is required"));
                 Common.PointId pid = toPointId(rawId);
@@ -284,9 +280,15 @@ public class Query extends QdrantConnection implements RunnableTask<FetchOutput>
         Integer rLimit = null;
         if (this.limit != null) {
             rLimit = runContext.render(this.limit).as(Integer.class).orElse(null);
+            if (rLimit != null) {
+                validateRange("limit", rLimit, 1, 1000);
+            }
         }
         if (rLimit == null && this.topK != null) {
             rLimit = runContext.render(this.topK).as(Integer.class).orElse(null);
+            if (rLimit != null) {
+                validateRange("topK", rLimit, 1, 1000);
+            }
         }
         return rLimit != null ? rLimit : 10;
     }

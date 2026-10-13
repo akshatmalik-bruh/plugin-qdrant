@@ -1,18 +1,22 @@
 package io.kestra.plugin.qdrant;
 
+import io.kestra.core.models.flows.Flow;
 import io.kestra.core.models.tasks.common.FetchType;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.serializers.YamlParser;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
 import io.qdrant.client.grpc.Collections;
 import io.qdrant.client.grpc.Common;
 import io.qdrant.client.grpc.Points;
 import jakarta.inject.Inject;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -26,6 +30,9 @@ public class QdrantConnectionTest {
 
     @Inject
     private RunContextFactory runContextFactory;
+
+    @Inject
+    private Validator validator;
 
     @Test
     void testToPointIdValid() {
@@ -264,5 +271,144 @@ public class QdrantConnectionTest {
             .vector(io.kestra.core.models.property.Property.ofValue(List.of(0.1f, 0.2f)))
             .build();
         assertThat(queryDefault.resolveLimit(runContext), is(10));
+    }
+
+    @Test
+    void testRenderedPortRangeValidation() {
+        RunContext runContext = runContextFactory.of();
+
+        var task = DeleteCollection.builder()
+            .host(io.kestra.core.models.property.Property.ofValue("localhost"))
+            .port(io.kestra.core.models.property.Property.ofValue(0))
+            .collectionName(io.kestra.core.models.property.Property.ofValue("test_col"))
+            .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
+        assertThat(ex.getMessage(), containsString("'port' must be between 1 and 65535"));
+    }
+
+    @Test
+    void testRenderedVectorSizeRangeValidation() {
+        RunContext runContext = runContextFactory.of();
+
+        var task = CreateCollection.builder()
+            .host(io.kestra.core.models.property.Property.ofValue("localhost"))
+            .collectionName(io.kestra.core.models.property.Property.ofValue("test_col"))
+            .vectorSize(io.kestra.core.models.property.Property.ofValue(0))
+            .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
+        assertThat(ex.getMessage(), containsString("'vectorSize' must be between 1"));
+    }
+
+    @Test
+    void testRenderedBatchSizeRangeValidation() {
+        RunContext runContext = runContextFactory.of();
+
+        var task = Upsert.builder()
+            .host(io.kestra.core.models.property.Property.ofValue("localhost"))
+            .collectionName(io.kestra.core.models.property.Property.ofValue("test_col"))
+            .points(List.of(Map.of("id", 1, "vector", List.of(0.1f, 0.2f))))
+            .batchSize(io.kestra.core.models.property.Property.ofValue(1001))
+            .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> task.run(runContext));
+        assertThat(ex.getMessage(), containsString("'batchSize' must be between 1 and 1000"));
+    }
+
+    @Test
+    void testRenderedQueryLimitRangeValidation() {
+        RunContext runContext = runContextFactory.of();
+
+        Query query = Query.builder()
+            .host(io.kestra.core.models.property.Property.ofValue("localhost"))
+            .collectionName(io.kestra.core.models.property.Property.ofValue("test_col"))
+            .vector(io.kestra.core.models.property.Property.ofValue(List.of(0.1f, 0.2f)))
+            .limit(io.kestra.core.models.property.Property.ofValue(1001))
+            .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> query.resolveLimit(runContext));
+        assertThat(ex.getMessage(), containsString("'limit' must be between 1 and 1000"));
+    }
+
+    @Test
+    void testRenderedQueryTopKRangeValidation() {
+        RunContext runContext = runContextFactory.of();
+
+        Query query = Query.builder()
+            .host(io.kestra.core.models.property.Property.ofValue("localhost"))
+            .collectionName(io.kestra.core.models.property.Property.ofValue("test_col"))
+            .vector(io.kestra.core.models.property.Property.ofValue(List.of(0.1f, 0.2f)))
+            .topK(io.kestra.core.models.property.Property.ofValue(0))
+            .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> query.resolveLimit(runContext));
+        assertThat(ex.getMessage(), containsString("'topK' must be between 1 and 1000"));
+    }
+
+    @Test
+    void testQueryVectorWithNonNumberFailsFast() {
+        RunContext runContext = runContextFactory.of();
+
+        Query query = Query.builder()
+            .host(io.kestra.core.models.property.Property.ofValue("localhost"))
+            .collectionName(io.kestra.core.models.property.Property.ofValue("test_col"))
+            .vector(io.kestra.core.models.property.Property.ofValue(List.of(0.1f, "oops")))
+            .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> query.run(runContext));
+        assertThat(ex.getMessage(), containsString("'vector' must be a list of numbers"));
+    }
+
+    @Test
+    void testUpsertInlinePointsYamlParsesAndValidates() throws Exception {
+        Flow flow = YamlParser.parse("""
+            id: qdrant_upsert
+            namespace: company.team
+
+            tasks:
+              - id: upsert_points
+                type: io.kestra.plugin.qdrant.Upsert
+                host: localhost
+                collectionName: docs
+                batchSize: 100
+                points:
+                  - id: 1
+                    vector: [0.05, 0.61, 0.76, 0.74]
+                    payload:
+                      city: Berlin
+                      country: Germany
+            """, Flow.class);
+
+        assertThat(flow.getTasks().getFirst() instanceof Upsert, is(true));
+
+        Upsert task = (Upsert) flow.getTasks().getFirst();
+        assertThat(task.getPoints() instanceof List<?>, is(true));
+
+        Set<?> violations = validator.validate(flow);
+        assertThat(violations.isEmpty(), is(true));
+    }
+
+    @Test
+    void testUpsertStorageUriYamlParsesAndValidates() throws Exception {
+        Flow flow = YamlParser.parse("""
+            id: qdrant_upsert
+            namespace: company.team
+
+            tasks:
+              - id: upsert_points
+                type: io.kestra.plugin.qdrant.Upsert
+                host: localhost
+                collectionName: docs
+                points: kestra:///points.ion
+            """, Flow.class);
+
+        assertThat(flow.getTasks().getFirst() instanceof Upsert, is(true));
+
+        Upsert task = (Upsert) flow.getTasks().getFirst();
+        assertThat(task.getPoints(), is("kestra:///points.ion"));
+
+        Set<?> violations = validator.validate(flow);
+        assertThat(violations.isEmpty(), is(true));
     }
 }

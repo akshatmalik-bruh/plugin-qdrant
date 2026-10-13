@@ -8,11 +8,9 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.qdrant.client.grpc.Collections;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -64,7 +62,6 @@ public class CreateCollection extends QdrantConnection implements RunnableTask<C
         description = "The dimension size of vectors to be stored in the collection."
     )
     @NotNull
-    @Min(1)
     @PluginProperty(group = "main")
     private Property<Integer> vectorSize;
 
@@ -104,6 +101,7 @@ public class CreateCollection extends QdrantConnection implements RunnableTask<C
     public Output run(RunContext runContext) throws Exception {
         var rCollectionName = runContext.render(this.collectionName).as(String.class).orElseThrow(() -> new IllegalArgumentException("'collectionName' is required"));
         var rVectorSize = runContext.render(this.vectorSize).as(Integer.class).orElseThrow(() -> new IllegalArgumentException("'vectorSize' is required"));
+        validateRange("vectorSize", rVectorSize, 1, Integer.MAX_VALUE);
         var rDistance = runContext.render(this.distance).as(Distance.class).orElse(Distance.COSINE);
         var rOnDiskVectors = runContext.render(this.onDiskVectors).as(Boolean.class).orElse(false);
         var rPayloadMemory = runContext.render(this.payloadMemory).as(PayloadMemory.class).orElse(null);

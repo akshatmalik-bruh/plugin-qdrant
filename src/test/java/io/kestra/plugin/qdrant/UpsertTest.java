@@ -1,6 +1,5 @@
 package io.kestra.plugin.qdrant;
 
-import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.qdrant.client.grpc.Collections;
 import io.kestra.core.serializers.FileSerde;
@@ -53,7 +52,7 @@ public class UpsertTest extends QdrantTest {
             .host(Property.ofValue(host))
             .port(Property.ofValue(port))
             .collectionName(Property.ofValue(collectionName))
-            .points(new Data(points))
+            .points(points)
             .batchSize(Property.ofValue(10))
             .build();
 
@@ -88,7 +87,7 @@ public class UpsertTest extends QdrantTest {
             .host(Property.ofValue(host))
             .port(Property.ofValue(port))
             .collectionName(Property.ofValue(collectionName))
-            .points(new Data(storageUri.toString()))
+            .points(storageUri.toString())
             .batchSize(Property.ofValue(1))
             .build();
 
